@@ -15,4 +15,4 @@ dcrypt = DES.new(key, DES.MODE_OFB, iv)
 dcip = dcrypt.decrypt(cip)
 print(dcip)
 
-# run code --> python .\4_CryptoCipher.py
+# run code --> python .\4_DES.py

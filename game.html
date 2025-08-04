@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Snake Eats Ball Game</title>
+    <style>
+      canvas {
+        background: #222;
+        display: block;
+        margin: 20px auto 10px;
+      }
+
+      #restartBtn {
+        display: none;
+        margin: 0 auto;
+        padding: 10px 20px;
+        font-size: 16px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" width="400" height="400"></canvas>
+    <button id="restartBtn">เริ่มเกมใหม่</button>
+
+    <script>
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const restartBtn = document.getElementById("restartBtn");
+
+      const grid = 20;
+      let snake;
+      let dx, dy;
+      let ball;
+      let score;
+      let gameOver = false;
+
+      function randomBall() {
+        let valid = false;
+        while (!valid) {
+          const x = Math.floor(Math.random() * (canvas.width / grid)) * grid;
+          const y = Math.floor(Math.random() * (canvas.height / grid)) * grid;
+          valid = !snake.some((s) => s.x === x && s.y === y);
+          if (valid) {
+            ball = { x, y };
+          }
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw ball
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(ball.x + grid / 2, ball.y + grid / 2, grid / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw snake
+        ctx.fillStyle = "lime";
+        snake.forEach((s) => {
+          ctx.fillRect(s.x, s.y, grid, grid);
+        });
+
+        // Draw score
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.fillText("Score: " + score, 10, 20);
+      }
+
+      function update() {
+        if (gameOver) return;
+
+        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+        snake.unshift(head);
+
+        if (head.x === ball.x && head.y === ball.y) {
+          score++;
+          randomBall();
+        } else {
+          snake.pop();
+        }
+
+        // Wall collision
+        if (
+          head.x < 0 ||
+          head.x >= canvas.width ||
+          head.y < 0 ||
+          head.y >= canvas.height
+        ) {
+          endGame();
+        }
+
+        // Self collision
+        for (let i = 1; i < snake.length; i++) {
+          if (head.x === snake[i].x && head.y === snake[i].y) {
+            endGame();
+          }
+        }
+      }
+
+      function reset() {
+        snake = [{ x: 200, y: 200 }];
+        dx = grid;
+        dy = 0;
+        score = 0;
+        gameOver = false;
+        restartBtn.style.display = "none";
+        randomBall();
+        gameLoop();
+      }
+
+      function endGame() {
+        gameOver = true;
+        restartBtn.style.display = "block";
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp" && dy === 0) {
+          dx = 0;
+          dy = -grid;
+        } else if (e.key === "ArrowDown" && dy === 0) {
+          dx = 0;
+          dy = grid;
+        } else if (e.key === "ArrowLeft" && dx === 0) {
+          dx = -grid;
+          dy = 0;
+        } else if (e.key === "ArrowRight" && dx === 0) {
+          dx = grid;
+          dy = 0;
+        }
+      });
+
+      restartBtn.addEventListener("click", reset);
+
+      function gameLoop() {
+        if (!gameOver) {
+          update();
+          draw();
+          setTimeout(gameLoop, 100);
+        }
+      }
+
+      // เริ่มเกมครั้งแรก
+      reset();
+    </script>
+  </body>
+</html>

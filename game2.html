@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Poker Night Game</title>
+    <style>
+      body {
+        font-family: Arial;
+        background: #2e2e2e;
+        color: #fff;
+      }
+      .table {
+        margin: 40px auto;
+        padding: 20px;
+        background: #444;
+        border-radius: 10px;
+        width: 720px;
+      }
+      .cards {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .card {
+        width: 60px;
+        height: 90px;
+        background: #fff;
+        color: #222;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5em;
+        border: 2px solid #222;
+      }
+      .actions {
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin-right: 10px;
+        border: none;
+        border-radius: 5px;
+        background: #1976d2;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #555;
+      }
+      .info {
+        margin-top: 20px;
+        white-space: pre-line;
+      }
+      .player-section {
+        margin-bottom: 15px;
+        border-bottom: 1px solid #666;
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="table">
+      <h2>Poker Night (Texas Hold’em, 4 Players)</h2>
+      <div id="players-hands"></div>
+      <div>
+        <strong>Community Cards:</strong>
+        <div id="community-cards" class="cards"></div>
+      </div>
+      <div class="actions">
+        <button id="deal-btn">Deal</button>
+        <button id="next-btn" disabled>Next Card</button>
+        <button id="fold-btn" disabled>Fold</button>
+        <button id="showdown-btn" disabled>Showdown</button>
+        <button id="reset-btn" disabled>Reset</button>
+      </div>
+      <div class="info" id="game-info"></div>
+    </div>
+
+    <script>
+      const suits = ["♠", "♥", "♦", "♣"];
+      const ranks = [
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "J",
+        "Q",
+        "K",
+        "A",
+      ];
+      const playerNames = ["You", "Alice", "Bob", "Charlie"];
+      let deck, hands, community, revealed, active, folded;
+
+      function createDeck() {
+        deck = [];
+        suits.forEach((s) =>
+          ranks.forEach((r) => deck.push({ suit: s, rank: r }))
+        );
+      }
+
+      function shuffle() {
+        for (let i = deck.length - 1; i > 0; i--) {
+          let j = Math.floor(Math.random() * (i + 1));
+          [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+      }
+
+      function deal() {
+        createDeck();
+        shuffle();
+        hands = [];
+        folded = [false, false, false, false];
+        for (let i = 0; i < 4; i++) hands.push([deck.pop(), deck.pop()]);
+        community = [
+          deck.pop(),
+          deck.pop(),
+          deck.pop(),
+          deck.pop(),
+          deck.pop(),
+        ];
+        revealed = 0;
+        active = true;
+        updateUI("แจกไพ่แล้ว เริ่มเปิด Flop ได้เลย");
+        document.getElementById("showdown-btn").disabled = true;
+      }
+
+      function renderCards(container, cards) {
+        container.innerHTML = "";
+        cards.forEach((card) => {
+          let d = document.createElement("div");
+          d.className = "card";
+          d.textContent = card.rank + card.suit;
+          container.appendChild(d);
+        });
+      }
+
+      function updatePlayers(showAll = false) {
+        const div = document.getElementById("players-hands");
+        div.innerHTML = "";
+        hands.forEach((hand, i) => {
+          const sec = document.createElement("div");
+          sec.className = "player-section";
+          let label = playerNames[i] + (folded[i] ? " (Folded)" : "");
+          sec.innerHTML = `<strong>${label}</strong>`;
+          const cardsD = document.createElement("div");
+          cardsD.className = "cards";
+          if (showAll || i === 0) renderCards(cardsD, hand);
+          else
+            renderCards(cardsD, [
+              { rank: "?", suit: "" },
+              { rank: "?", suit: "" },
+            ]);
+          sec.appendChild(cardsD);
+          div.appendChild(sec);
+        });
+      }
+
+      function rankHand(cards) {
+        const cnt = {},
+          suitCnt = {};
+        cards.forEach((c) => {
+          cnt[c.rank] = (cnt[c.rank] || 0) + 1;
+          suitCnt[c.suit] = (suitCnt[c.suit] || 0) + 1;
+        });
+
+        const vals = cards
+          .map((c) => ranks.indexOf(c.rank))
+          .sort((a, b) => a - b);
+        const flush = Object.values(suitCnt).some((c) => c >= 5);
+        let straight = false,
+          run = 1;
+
+        for (let i = 1; i < vals.length; i++) {
+          if (vals[i] === vals[i - 1] + 1) run++;
+          else if (vals[i] !== vals[i - 1]) run = 1;
+          if (run >= 5) straight = true;
+        }
+
+        const freq = Object.values(cnt).sort((a, b) => b - a);
+        let name = "High Card",
+          value = 0;
+        if (freq[0] === 4) {
+          name = "Four of a Kind";
+          value = 7;
+        } else if (freq[0] === 3 && freq[1] === 2) {
+          name = "Full House";
+          value = 6;
+        } else if (flush) {
+          name = "Flush";
+          value = 5;
+        } else if (straight) {
+          name = "Straight";
+          value = 4;
+        } else if (freq[0] === 3) {
+          name = "Three of a Kind";
+          value = 3;
+        } else if (freq[0] === 2 && freq[1] === 2) {
+          name = "Two Pair";
+          value = 2;
+        } else if (freq[0] === 2) {
+          name = "Pair";
+          value = 1;
+        }
+
+        return { name, value, high: Math.max(...vals) };
+      }
+
+      function showdown() {
+        active = false;
+        document.getElementById("next-btn").disabled = true;
+        document.getElementById("fold-btn").disabled = true;
+        document.getElementById("showdown-btn").disabled = true;
+
+        let bestValue = -1,
+          bestHigh = -1,
+          winners = [],
+          info = "";
+
+        hands.forEach((hand, i) => {
+          if (folded[i]) {
+            info += `${playerNames[i]} folded.\n`;
+            return;
+          }
+          const result = rankHand(hand.concat(community));
+          info += `${playerNames[i]}: ${result.name} (แรงก์ ${result.value})\n`;
+
+          if (
+            result.value > bestValue ||
+            (result.value === bestValue && result.high > bestHigh)
+          ) {
+            bestValue = result.value;
+            bestHigh = result.high;
+            winners = [i];
+          } else if (result.value === bestValue && result.high === bestHigh) {
+            winners.push(i);
+          }
+        });
+
+        if (winners.length === 1) {
+          info += `\n🎉 Winner: ${playerNames[winners[0]]} (${
+            rankHand(hands[winners[0]].concat(community)).name
+          })`;
+        } else {
+          const names = winners.map((i) => playerNames[i]).join(", ");
+          info += `\n🤝 Draw! Winners: ${names} (${
+            rankHand(hands[winners[0]].concat(community)).name
+          })`;
+        }
+
+        updateUI(info, true);
+      }
+
+      function updateUI(msg, showAll = false) {
+        updatePlayers(showAll);
+        renderCards(
+          document.getElementById("community-cards"),
+          community.slice(0, revealed)
+        );
+        document.getElementById("next-btn").disabled = !active || revealed >= 5;
+        document.getElementById("fold-btn").disabled = !active;
+        document.getElementById("deal-btn").disabled = active;
+        document.getElementById("reset-btn").disabled = active;
+        document.getElementById("game-info").textContent = msg;
+      }
+
+      document.getElementById("deal-btn").onclick = () => deal();
+      document.getElementById("next-btn").onclick = () => {
+        if (revealed < 5) revealed++;
+        updateUI(`เปิด community cards: ${revealed} ใบ`, false);
+        if (revealed === 5)
+          document.getElementById("showdown-btn").disabled = false;
+      };
+      document.getElementById("fold-btn").onclick = () => {
+        folded[0] = true;
+        updateUI("You folded.", false);
+        document.getElementById("next-btn").disabled = true;
+        document.getElementById("showdown-btn").disabled = false;
+      };
+      document.getElementById("showdown-btn").onclick = showdown;
+      document.getElementById("reset-btn").onclick = () => {
+        active = false;
+        folded = [false, false, false, false];
+        revealed = 0;
+        updateUI("", false);
+      };
+
+      updateUI("", false);
+    </script>
+  </body>
+</html>
